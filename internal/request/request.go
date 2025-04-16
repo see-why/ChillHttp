@@ -6,8 +6,16 @@ import (
 	"strings"
 )
 
+type ParserState int
+
+const (
+	StateInitialized ParserState = iota
+	StateDone
+)
+
 type Request struct {
 	RequestLine RequestLine
+	state       ParserState
 }
 
 type RequestLine struct {
@@ -17,32 +25,76 @@ type RequestLine struct {
 }
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, err
+	req := &Request{
+		state: StateInitialized,
 	}
 
-	requestLine, err := parseRequestLine(string(data))
-	if err != nil {
-		return nil, err
+	buffer := make([]byte, 8)
+	parsedBytes := 0
+
+	for req.state != StateDone {
+		n, err := reader.Read(buffer[parsedBytes:])
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+
+		consumed, err := req.parse(buffer[:parsedBytes+n])
+		if err != nil {
+			return nil, err
+		}
+
+		// Shift unparsed data to the beginning of the buffer
+		if consumed < len(buffer) {
+			copy(buffer, buffer[consumed:])
+			parsedBytes = len(buffer) - consumed
+		} else {
+			parsedBytes = 0
+		}
+
+		// Grow buffer if needed
+		if parsedBytes == len(buffer) {
+			newBuffer := make([]byte, len(buffer)*2)
+			copy(newBuffer, buffer)
+			buffer = newBuffer
+		}
 	}
 
-	return &Request{
-		RequestLine: requestLine,
-	}, nil
+	return req, nil
 }
 
-func parseRequestLine(data string) (RequestLine, error) {
-	// Split on first newline to get request line
-	parts := strings.SplitN(data, "\r\n", 2)
-	if len(parts) == 0 {
-		return RequestLine{}, errors.New("empty request")
+func (r *Request) parse(data []byte) (int, error) {
+	if r.state == StateDone {
+		return 0, nil
+	}
+
+	consumed, requestLine, err := parseRequestLine(data)
+	if err != nil {
+		return 0, err
+	}
+
+	if consumed == 0 {
+		return 0, nil
+	}
+
+	r.RequestLine = requestLine
+	r.state = StateDone
+	return consumed, nil
+}
+
+func parseRequestLine(data []byte) (int, RequestLine, error) {
+	// Find the end of the request line
+	end := strings.Index(string(data), "\r\n")
+	if end == -1 {
+		return 0, RequestLine{}, nil
 	}
 
 	// Split request line into components
-	requestParts := strings.Split(parts[0], " ")
+	requestParts := strings.Split(string(data[:end]), " ")
 	if len(requestParts) != 3 {
-		return RequestLine{}, errors.New("invalid request line format")
+		return 0, RequestLine{}, errors.New("invalid request line format")
 	}
 
 	method := requestParts[0]
@@ -51,15 +103,15 @@ func parseRequestLine(data string) (RequestLine, error) {
 
 	// Validate method
 	if !isValidMethod(method) {
-		return RequestLine{}, errors.New("invalid method")
+		return 0, RequestLine{}, errors.New("invalid method")
 	}
 
 	// Validate version
 	if version != "HTTP/1.1" {
-		return RequestLine{}, errors.New("unsupported HTTP version")
+		return 0, RequestLine{}, errors.New("unsupported HTTP version")
 	}
 
-	return RequestLine{
+	return end + 2, RequestLine{
 		Method:        method,
 		RequestTarget: target,
 		HttpVersion:   "1.1",
