@@ -16,7 +16,7 @@ A Go implementation of an HTTP/1.1 protocol parser with streaming support.
 .
 ├── internal/
 │   └── request/
-│       ├── request.go      # HTTP request parsing implementation
+│       ├── request.go      # HTTP requests parsing implementation
 │       └── request_test.go # Test cases for request parsing
 └── cmd/
     └── udpsender/
