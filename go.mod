@@ -1,4 +1,4 @@
-module myhttpserver
+module myhttpprotocol
 
 go 1.23.2
 
