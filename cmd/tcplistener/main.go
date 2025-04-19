@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"myhttpprotocol/internal/request"
 	"net"
 	"strings"
 )
@@ -65,10 +66,22 @@ func main() {
 
 		fmt.Println("Connection accepted")
 
-		for line := range getLinesChannel(conn) {
-			fmt.Println(line)
+		req, err := request.RequestFromReader(conn)
+		if err != nil {
+			fmt.Printf("Error reading request: %v\n", err)
+			conn.Close()
+			continue
 		}
 
+		fmt.Printf("Request line:\n"+
+			"- Method: %s\n"+
+			"- Target: %s\n"+
+			"- Version: %s\n",
+			req.RequestLine.Method,
+			req.RequestLine.RequestTarget,
+			req.RequestLine.HttpVersion)
+
+		conn.Close()
 		fmt.Println("Connection closed")
 	}
 }
