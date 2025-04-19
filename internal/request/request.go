@@ -111,6 +111,7 @@ func parseRequestLine(data []byte) (int, RequestLine, error) {
 		return 0, RequestLine{}, errors.New("unsupported HTTP version")
 	}
 
+	// + 2 to account for \r\n characters
 	return end + 2, RequestLine{
 		Method:        method,
 		RequestTarget: target,
