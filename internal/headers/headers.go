@@ -64,8 +64,13 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		return 0, false, err
 	}
 
-	// Add to headers (convert key to lowercase)
-	h[strings.ToLower(key)] = value
+	key = strings.ToLower(key)
+
+	if _, exists := h[key]; exists {
+		h[key] = h[key] + "," + value
+	} else {
+		h[key] = value
+	}
 
 	// Return bytes consumed (header line + CRLF)
 	return end + 2, false, nil
