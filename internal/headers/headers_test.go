@@ -95,3 +95,17 @@ func TestValidSpecialCharactersInHeaderKey(t *testing.T) {
 	assert.Equal(t, 28, n)
 	assert.False(t, done)
 }
+
+func TestCombineValuesForSameKey(t *testing.T) {
+	headers := NewHeaders()
+	data := []byte("X-Forwarded-For: 127.0.0.1\r\n\r\n")
+	headers.Parse(data)
+
+	data = []byte("X-Forwarded-For: 125.0.0.12\r\n\r\n")
+	n, done, err := headers.Parse(data)
+
+	require.NoError(t, err)
+	assert.Equal(t, "127.0.0.1,125.0.0.12", headers["x-forwarded-for"])
+	assert.Equal(t, 29, n)
+	assert.False(t, done)
+}
