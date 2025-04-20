@@ -35,14 +35,17 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		return 0, false, errors.New("invalid header format: missing colon")
 	}
 
-	// Extract and clean key and value
-	key := strings.TrimSpace(headerLine[:colonIndex])
-	value := strings.TrimSpace(headerLine[colonIndex+1:])
+	key := headerLine[:colonIndex]
 
-	// Validate key format
 	if strings.Contains(key, " ") {
 		return 0, false, errors.New("invalid header format: spaces in key")
 	}
+
+	// Extract and clean key and value
+	key = strings.TrimSpace(headerLine[:colonIndex])
+	value := strings.TrimSpace(headerLine[colonIndex+1:])
+
+	// Validate key format
 
 	// Add to headers
 	h[key] = value
