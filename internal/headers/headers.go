@@ -3,12 +3,27 @@ package headers
 import (
 	"errors"
 	"strings"
+	"unicode"
 )
 
 type Headers map[string]string
 
 func NewHeaders() Headers {
 	return make(Headers)
+}
+
+func isValidHeaderKeyChar(r rune) bool {
+	return unicode.IsLetter(r) || unicode.IsDigit(r) ||
+		strings.ContainsRune("!#$%&'*+-.^_`|~", r)
+}
+
+func validateHeaderKey(key string) error {
+	for _, r := range key {
+		if !isValidHeaderKeyChar(r) {
+			return errors.New("invalid character in header key")
+		}
+	}
+	return nil
 }
 
 func (h Headers) Parse(data []byte) (n int, done bool, err error) {
@@ -36,9 +51,8 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	}
 
 	key := headerLine[:colonIndex]
-
-	if strings.Contains(key, " ") {
-		return 0, false, errors.New("invalid header format: spaces in key")
+	if len(key) == 0 || key[len(key)-1] == ' ' {
+		return 0, false, errors.New("invalid header format: empty key or trailing space")
 	}
 
 	// Extract and clean key and value
@@ -46,9 +60,12 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	value := strings.TrimSpace(headerLine[colonIndex+1:])
 
 	// Validate key format
+	if err := validateHeaderKey(key); err != nil {
+		return 0, false, err
+	}
 
-	// Add to headers
-	h[key] = value
+	// Add to headers (convert key to lowercase)
+	h[strings.ToLower(key)] = value
 
 	// Return bytes consumed (header line + CRLF)
 	return end + 2, false, nil
