@@ -67,7 +67,7 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	key = strings.ToLower(key)
 
 	if _, exists := h[key]; exists {
-		h[key] = h[key] + "," + value
+		h[key] = h[key] + ", " + value
 	} else {
 		h[key] = value
 	}
