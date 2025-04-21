@@ -105,7 +105,7 @@ func TestCombineValuesForSameKey(t *testing.T) {
 	n, done, err := headers.Parse(data)
 
 	require.NoError(t, err)
-	assert.Equal(t, "127.0.0.1,125.0.0.12", headers["x-forwarded-for"])
+	assert.Equal(t, "127.0.0.1, 125.0.0.12", headers["x-forwarded-for"])
 	assert.Equal(t, 29, n)
 	assert.False(t, done)
 }
