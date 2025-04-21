@@ -3,6 +3,7 @@ package request
 import (
 	"errors"
 	"io"
+	"myhttpprotocol/internal/headers"
 	"strings"
 )
 
@@ -10,12 +11,14 @@ type ParserState int
 
 const (
 	StateInitialized ParserState = iota
+	StateParsingHeaders
 	StateDone
 )
 
 type Request struct {
 	RequestLine RequestLine
 	state       ParserState
+	Headers     headers.Headers
 }
 
 type RequestLine struct {
@@ -26,62 +29,97 @@ type RequestLine struct {
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
 	req := &Request{
-		state: StateInitialized,
+		state:   StateInitialized,
+		Headers: headers.NewHeaders(),
 	}
 
 	buffer := make([]byte, 8)
 	parsedBytes := 0
 
 	for req.state != StateDone {
+		if parsedBytes >= len(buffer) {
+			newBuffer := make([]byte, len(buffer)*2)
+			copy(newBuffer, buffer)
+			buffer = newBuffer
+		}
+
 		n, err := reader.Read(buffer[parsedBytes:])
 		if err != nil {
 			if err == io.EOF {
+				if req.state != StateDone {
+					return nil, errors.New("incomplete request: missing end of headers")
+				}
 				break
 			}
 			return nil, err
 		}
 
-		consumed, err := req.parse(buffer[:parsedBytes+n])
+		parsedBytes += n
+
+		consumed, err := req.parse(buffer[:parsedBytes])
 		if err != nil {
 			return nil, err
 		}
 
-		// Shift unparsed data to the beginning of the buffer
-		if consumed < len(buffer) {
-			copy(buffer, buffer[consumed:])
-			parsedBytes = len(buffer) - consumed
-		} else {
-			parsedBytes = 0
-		}
-
-		// Grow buffer if needed
-		if parsedBytes == len(buffer) {
-			newBuffer := make([]byte, len(buffer)*2)
-			copy(newBuffer, buffer)
-			buffer = newBuffer
-		}
+		copy(buffer, buffer[consumed:])
+		parsedBytes -= consumed
 	}
 
 	return req, nil
 }
 
 func (r *Request) parse(data []byte) (int, error) {
-	if r.state == StateDone {
+	totalBytesParsed := 0
+
+	for r.state != StateDone {
+		n, err := r.parseSingle(data[totalBytesParsed:])
+		if err != nil {
+			return 0, err
+		}
+		if n == 0 {
+			// Need more data
+			break
+		}
+		totalBytesParsed += n
+	}
+
+	return totalBytesParsed, nil
+}
+
+func (r *Request) parseSingle(data []byte) (int, error) {
+	switch r.state {
+	case StateInitialized:
+		n, requestLine, err := parseRequestLine(data)
+		if err != nil {
+			return 0, err
+		}
+		if n == 0 {
+			// Need more data
+			return 0, nil
+		}
+		r.RequestLine = requestLine
+		r.state = StateParsingHeaders
+		return n, nil
+
+	case StateParsingHeaders:
+		n, done, err := r.Headers.Parse(data)
+		if err != nil {
+			return 0, err
+		}
+		if done {
+			r.state = StateDone
+		} else if n == 0 {
+			// Need more data
+			return 0, nil
+		}
+		return n, nil
+
+	case StateDone:
 		return 0, nil
-	}
 
-	consumed, requestLine, err := parseRequestLine(data)
-	if err != nil {
-		return 0, err
+	default:
+		return 0, errors.New("unknown state")
 	}
-
-	if consumed == 0 {
-		return 0, nil
-	}
-
-	r.RequestLine = requestLine
-	r.state = StateDone
-	return consumed, nil
 }
 
 func parseRequestLine(data []byte) (int, RequestLine, error) {
@@ -98,20 +136,19 @@ func parseRequestLine(data []byte) (int, RequestLine, error) {
 	}
 
 	method := requestParts[0]
-	target := requestParts[1]
-	version := requestParts[2]
-
-	// Validate method
 	if !isValidMethod(method) {
 		return 0, RequestLine{}, errors.New("invalid method")
 	}
+
+	target := requestParts[1]
+	version := requestParts[2]
 
 	// Validate version
 	if version != "HTTP/1.1" {
 		return 0, RequestLine{}, errors.New("unsupported HTTP version")
 	}
 
-	// + 2 to account for \r\n characters
+	// Return bytes consumed (request line + CRLF)
 	return end + 2, RequestLine{
 		Method:        method,
 		RequestTarget: target,
