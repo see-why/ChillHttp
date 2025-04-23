@@ -75,3 +75,12 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	// Return bytes consumed (header line + CRLF)
 	return end + 2, false, nil
 }
+
+func (h Headers) Get(key string) (string) {
+	key = strings.ToLower(key)
+	if value, exists := h[key]; exists {
+		return value
+	}
+
+	return ""
+}
