@@ -2,8 +2,10 @@ package request
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"myhttpprotocol/internal/headers"
+	"strconv"
 	"strings"
 )
 
@@ -12,6 +14,7 @@ type ParserState int
 const (
 	StateInitialized ParserState = iota
 	StateParsingHeaders
+	StateParsingBody
 	StateDone
 )
 
@@ -19,6 +22,8 @@ type Request struct {
 	RequestLine RequestLine
 	state       ParserState
 	Headers     headers.Headers
+	Body 		[]byte
+	bodyLengthRead int
 }
 
 type RequestLine struct {
@@ -31,6 +36,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 	req := &Request{
 		state:   StateInitialized,
 		Headers: headers.NewHeaders(),
+		Body:   make([]byte, 0),
 	}
 
 	buffer := make([]byte, 8)
@@ -107,15 +113,38 @@ func (r *Request) parseSingle(data []byte) (int, error) {
 			return 0, err
 		}
 		if done {
-			r.state = StateDone
-		} else if n == 0 {
-			// Need more data
-			return 0, nil
+			r.state = StateParsingBody
 		}
+
 		return n, nil
+	
+	case StateParsingBody:
+		contentLength := r.Headers.Get("Content-Length")
+		if contentLength == "" {
+			r.state = StateDone
+			return len(data), nil
+		}
+
+		num, err := strconv.Atoi(contentLength)
+		if err != nil {
+			return 0, fmt.Errorf("invalid Content-Length value: %v", err)
+		}
+
+		r.Body = append(r.Body, data...)
+		r.bodyLengthRead += len(data)
+
+		if r.bodyLengthRead > num {
+			return 0, fmt.Errorf("data is larger than shared Content-Length")
+		}
+
+		if r.bodyLengthRead == num {
+			r.state = StateDone
+		}
+
+		return len(data), nil
 
 	case StateDone:
-		return 0, nil
+		return 0, errors.New("trying to read error in completed state")
 
 	default:
 		return 0, errors.New("unknown state")
