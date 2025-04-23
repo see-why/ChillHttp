@@ -86,6 +86,15 @@ func main() {
 			fmt.Printf("- %s: %s\n", key, value)
 		}
 
+		fmt.Println("Body:")
+		if len(req.Body) > 0 {
+			fmt.Println(string(req.Body))
+		} else {
+			fmt.Println("No body")
+		}
+		fmt.Println("Request processing complete")
+		fmt.Println("Closing connection")
+
 		conn.Close()
 		fmt.Println("Connection closed")
 	}
