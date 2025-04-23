@@ -93,7 +93,6 @@ func main() {
 			fmt.Println("No body")
 		}
 		fmt.Println("Request processing complete")
-		fmt.Println("Closing connection")
 
 		conn.Close()
 		fmt.Println("Connection closed")
