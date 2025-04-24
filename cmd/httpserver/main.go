@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"myhttpprotocol/internal/response"
 	"net"
 	"os"
 	"os/signal"
@@ -46,9 +47,8 @@ func (s *Server) handle(conn net.Conn) {
 	}
 	defer conn.Close()
 
-	conn.Write([]byte("HTTP/1.1 200 OK\r\n"))
-	conn.Write([]byte("Content-Type: text/plain \r\n"))
-	conn.Write([]byte("\nHello World!"))
+	response.WriteStatusLine(conn, response.OK)
+	response.WriteHeaders(conn, response.GetDefaultHeaders(0))
 }
 
 func (s *Server) listen() {
