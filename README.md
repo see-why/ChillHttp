@@ -1,4 +1,4 @@
-# MyHttpProtocol
+# ChillHttp
 
 A Go implementation of an HTTP/1.1 protocol parser with streaming support.
 
@@ -9,6 +9,7 @@ A Go implementation of an HTTP/1.1 protocol parser with streaming support.
 - Memory-efficient buffer management
 - Stateful parsing
 - Support for standard HTTP methods
+- Custom status code handling with defined constants
 
 ## Structure
 
@@ -45,6 +46,7 @@ The parser implements:
 - State tracking (initialized/done)
 - HTTP/1.1 request line validation
 - Method validation (uppercase letters only)
+- HTTP response status code handling with defined constants (200, 400, 500)
 
 ## License
 
