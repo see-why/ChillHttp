@@ -21,7 +21,11 @@ A Go implementation of an HTTP/1.1 protocol parser with streaming support.
 │       └── request_test.go # Test cases for request parsing
 └── cmd/
     └── udpsender/
-        └── main.go         # UDP client for testing
+    |   └── main.go         # UDP client for testing
+    └── tcplistener/
+    |   └── main.go         # TCP client for testing
+    └── httpserver/
+        └── main.go         # hhtp server for testing
 ```
 
 ## Usage
