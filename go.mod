@@ -1,4 +1,4 @@
-module myhttpprotocol
+module chillhttp
 
 go 1.23.2
 
