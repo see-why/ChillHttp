@@ -1,9 +1,9 @@
 package response
 
 import (
+	"chillhttp/internal/headers"
 	"fmt"
 	"io"
-	"myhttpprotocol/internal/headers"
 )
 
 type StatusCode int

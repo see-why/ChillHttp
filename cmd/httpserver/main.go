@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"myhttpprotocol/internal/server"
+	"chillhttp/internal/server"
 
 	"github.com/pingcap/log"
 )

@@ -1,10 +1,10 @@
 package server
 
 import (
+	"chillhttp/internal/request"
+	"chillhttp/internal/response"
 	"fmt"
 	"io"
-	"myhttpprotocol/internal/request"
-	"myhttpprotocol/internal/response"
 	"net"
 )
 

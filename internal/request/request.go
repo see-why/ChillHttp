@@ -1,10 +1,10 @@
 package request
 
 import (
+	"chillhttp/internal/headers"
 	"errors"
 	"fmt"
 	"io"
-	"myhttpprotocol/internal/headers"
 	"strconv"
 	"strings"
 )
