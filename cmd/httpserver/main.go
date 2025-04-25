@@ -9,7 +9,6 @@ import (
 	"myhttpprotocol/internal/server"
 
 	"github.com/pingcap/log"
-	"go.uber.org/zap"
 )
 
 const port = 42069
@@ -20,7 +19,7 @@ func main() {
 		fmt.Println("Error starting server: %w", err)
 	}
 	defer server.Close()
-	log.Info("Server listening on :%d", zap.Int("port", port))
+	fmt.Println("Server listening on :", port)
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
