@@ -14,7 +14,47 @@ const (
 	InternalServerError StatusCode = 500
 )
 
-func WriteStatusLine(w io.Writer, statusCode StatusCode) error {
+type Writer struct {
+	Writer io.Writer
+	State WriteState
+}
+
+type WriteState int
+
+const (
+	StateWriteStatusLine  WriteState = iota
+	StateWriteHeaders
+	StateWriteBody
+	StateDone
+)
+
+// NewResponseWriter creates a new ResponseWriter instance
+func NewWriter(w io.Writer) *Writer {
+	return &Writer{
+		Writer:     w,
+		State:      StateWriteStatusLine,
+	}
+}
+
+func (w *Writer) WriteBody(p []byte) (int, error) {
+	if w.State != StateWriteBody {
+		return 0, fmt.Errorf("invalid state: expected StateWriteHeaders, got %v", w.State)
+	}
+
+	length, err := w.Writer.Write([]byte(p))
+	if err != nil {
+		return length, err
+	}
+
+	w.State = StateDone
+	return length, nil
+}
+
+func (w *Writer) WriteStatusLine(statusCode StatusCode) error {
+	if w.State != StateWriteStatusLine {
+		return fmt.Errorf("invalid state: expected StateInitialized, got %v", w.State)
+	}
+
 	statusLine := ""
 	switch statusCode {
 		case OK:
@@ -27,10 +67,12 @@ func WriteStatusLine(w io.Writer, statusCode StatusCode) error {
 			statusLine = fmt.Sprintf("HTTP/1.1 %d \r\n", statusCode)
 	}
 
-	_, err := w.Write([]byte(statusLine))
+	_, err := w.Writer.Write([]byte(statusLine))
 	if err != nil {
 		return err
 	}
+
+	w.State = StateWriteHeaders
 	
 	return nil
 }
@@ -43,16 +85,21 @@ func GetDefaultHeaders(contentLen int) headers.Headers {
 	return h
 }
 
-func WriteHeaders(w io.Writer, headers headers.Headers) error {
+func (w *Writer) WriteHeaders(headers headers.Headers) error {
+	if w.State != StateWriteHeaders {
+		return fmt.Errorf("invalid state: expected StateWriteStatusLine, got %v", w.State)
+	}
 	for key, value := range headers {
-		_, err := w.Write([]byte(fmt.Sprintf("%s: %s\r\n", key, value)))
+		_, err := w.Writer.Write([]byte(fmt.Sprintf("%s: %s\r\n", key, value)))
 		if err != nil {
 			return err
 		}
 	}
-	_, err := w.Write([]byte("\r\n"))
+	_, err := w.Writer.Write([]byte("\r\n"))
 	if err != nil {
 		return err
 	}
+
+	w.State = StateWriteBody
 	return nil
 }
