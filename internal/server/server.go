@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"chillhttp/internal/request"
 	"chillhttp/internal/response"
 	"fmt"
@@ -20,7 +19,7 @@ type HandlerError struct {
 	Err  string
 }
 
-type Handler func(w io.Writer, req *request.Request) *HandlerError
+type Handler func(w *response.Writer, req *request.Request)
 
 func WriteError(w io.Writer, err *HandlerError) {
 	if err == nil {
@@ -29,8 +28,9 @@ func WriteError(w io.Writer, err *HandlerError) {
 
 	body := err.Err
 	statusCode := response.StatusCode(err.Code)
-	response.WriteStatusLine(w, statusCode)
-	response.WriteHeaders(w, response.GetDefaultHeaders(len(body)))// Assuming buff.Len() is not available in this context
+	writer := response.NewWriter(w)
+	writer.WriteStatusLine(statusCode)
+	writer.WriteHeaders(response.GetDefaultHeaders(len(body)))// Assuming buff.Len() is not available in this context
 	w.Write([]byte(body))
 }
 
@@ -64,23 +64,16 @@ func (s *Server) handle(conn net.Conn) {
 	}
 	defer conn.Close()
 
+	writer := response.NewWriter(conn)
 	req, err := request.RequestFromReader(conn)
 	if err != nil {
-		response.WriteStatusLine(conn, response.BadRequest)
-		response.WriteHeaders(conn, response.GetDefaultHeaders(0))
+		writer.WriteStatusLine(response.BadRequest)
+		writer.WriteHeaders(response.GetDefaultHeaders(0))
 		return
 	}
 
-	var buff bytes.Buffer
-	herr := s.Handler(&buff, req)
-	if herr != nil {
-		WriteError(conn, herr)
-		return
-	}
-
-	response.WriteStatusLine(conn, response.OK)
-	response.WriteHeaders(conn, response.GetDefaultHeaders(buff.Len()))
-	conn.Write(buff.Bytes())
+	writer = response.NewWriter(conn)
+	s.Handler(writer, req)
 }
 
 func (s *Server) listen() {
