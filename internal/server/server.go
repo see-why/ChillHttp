@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync/atomic"
 )
 
 type Server struct {
 	Listener net.Listener
-	Closed  bool
+	Handler  Handler
+	Closed  atomic.Bool
 }
 type HandlerError struct {
 	Code int
@@ -41,22 +43,23 @@ func Serve(port int, handler Handler) (*Server, error) {
 
 	s := &Server{
 		Listener: l,
-		Closed:  false,
+		Handler:  handler,
+		Closed:  atomic.Bool{},
 	}
-	go s.listen(handler)
+	go s.listen()
 	return s, nil
 }
 
 func (s *Server) Close() error {
 	if s.Listener != nil {
-		s.Closed = true
+		s.Closed.Store(true)
 		return s.Listener.Close()
 	}
 	return nil
 }
 
-func (s *Server) handle(conn net.Conn, handler Handler) {
-	if s.Closed {
+func (s *Server) handle(conn net.Conn) {
+	if s.Closed.Load() {
 		return
 	}
 	defer conn.Close()
@@ -69,7 +72,7 @@ func (s *Server) handle(conn net.Conn, handler Handler) {
 	}
 
 	var buff bytes.Buffer
-	herr := handler(&buff, req)
+	herr := s.Handler(&buff, req)
 	if herr != nil {
 		WriteError(conn, herr)
 		return
@@ -80,13 +83,13 @@ func (s *Server) handle(conn net.Conn, handler Handler) {
 	conn.Write(buff.Bytes())
 }
 
-func (s *Server) listen(handler Handler) {
+func (s *Server) listen() {
 	for {
 		conn, err := s.Listener.Accept()
 		if err != nil {
 			fmt.Println("Error accepting connection: %w", err)
 		}
 
-		go s.handle(conn, handler)
+		go s.handle(conn)
 	}
 }
