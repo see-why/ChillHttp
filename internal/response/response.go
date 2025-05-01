@@ -85,6 +85,13 @@ func GetDefaultHeaders(contentLen int) headers.Headers {
 	return h
 }
 
+func GetDefaultTrailerHeaders(contentLen int, sha string) headers.Headers {
+	h := headers.NewHeaders()
+	h["X-Content-Sha256"] = sha
+	h["X-Content-Length"] = fmt.Sprintf("%d", contentLen)
+	return h
+}
+
 func (w *Writer) WriteHeaders(headers headers.Headers) error {
 	if w.State != StateWriteHeaders {
 		return fmt.Errorf("invalid state: expected StateWriteStatusLine, got %v", w.State)
@@ -125,5 +132,17 @@ func (w *Writer) WriteChunkedBody(p []byte) (int, error) {
 
 // WriteChunkedBodyDone writes the final zero-length chunk.
 func (w *Writer) WriteChunkedBodyDone() (int, error) {
-	return w.Writer.Write([]byte("0\r\n\r\n"))
+	return w.Writer.Write([]byte("0\r\n"))
+}
+
+func (w *Writer) WriteTrailers(headers headers.Headers) error {
+	for key, value := range headers {
+		_, err := w.Writer.Write([]byte(fmt.Sprintf("%s: %s\r\n", key, value)))
+		if err != nil {
+			return err
+		}
+	}
+
+	w.Writer.Write([]byte("\r\n"))
+	return nil
 }
