@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"chillhttp/internal/request"
@@ -16,6 +18,44 @@ import (
 const port = 42069
 
 func HttpHandler(w *response.Writer, req *request.Request) {
+	if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin/") {
+		proxyPath := strings.TrimPrefix(req.RequestLine.RequestTarget, "/httpbin")
+		targetURL := "https://httpbin.org" + proxyPath
+
+		resp, err := http.Get(targetURL)
+		if err != nil {
+			w.WriteStatusLine(response.InternalServerError)
+			w.WriteHeaders(response.GetDefaultHeaders(0))
+			w.WriteBody([]byte("Proxy error\n"))
+			return
+		}
+		defer resp.Body.Close()
+
+		// Remove Content-Length, add Transfer-Encoding: chunked
+		headers := response.GetDefaultHeaders(0)
+		delete(headers, "Content-Length")
+		headers["Transfer-Encoding"] = "chunked"
+
+		// Write status line and headers
+		w.WriteStatusLine(response.StatusCode(resp.StatusCode))
+		w.WriteHeaders(headers)
+
+		buf := make([]byte, 1024)
+		for {
+			n, err := resp.Body.Read(buf)
+			if n > 0 {
+				// Print n for debugging
+				fmt.Println("Read bytes:", n)
+				w.WriteChunkedBody(buf[:n])
+			}
+			if err != nil {
+				break
+			}
+		}
+		w.WriteChunkedBodyDone()
+		return
+	}
+
 	var body []byte
 	switch req.RequestLine.RequestTarget {
 	case "/yourproblem":
