@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"net/http"
 	"os"
@@ -35,24 +36,33 @@ func HttpHandler(w *response.Writer, req *request.Request) {
 		headers := response.GetDefaultHeaders(0)
 		delete(headers, "Content-Length")
 		headers["Transfer-Encoding"] = "chunked"
+		headers["Trailer"] = "X-Content-Sha256, X-Content-Length"
 
 		// Write status line and headers
 		w.WriteStatusLine(response.StatusCode(resp.StatusCode))
 		w.WriteHeaders(headers)
-
+		
+		var fullBody []byte
 		buf := make([]byte, 1024)
 		for {
 			n, err := resp.Body.Read(buf)
 			if n > 0 {
 				// Print n for debugging
+				chunk := buf[:n]
 				fmt.Println("Read bytes:", n)
-				w.WriteChunkedBody(buf[:n])
+				fullBody = append(fullBody, chunk...)
+				w.WriteChunkedBody(chunk)
 			}
 			if err != nil {
 				break
 			}
 		}
 		w.WriteChunkedBodyDone()
+
+		hashSum := sha256.Sum256(fullBody)
+		trailers := response.GetDefaultTrailerHeaders(len(fullBody), fmt.Sprintf("%x", hashSum))
+		w.WriteTrailers(trailers)
+
 		return
 	}
 
