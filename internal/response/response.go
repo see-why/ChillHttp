@@ -103,3 +103,27 @@ func (w *Writer) WriteHeaders(headers headers.Headers) error {
 	w.State = StateWriteBody
 	return nil
 }
+
+// WriteChunkedBody writes a single chunk in chunked transfer encoding.
+func (w *Writer) WriteChunkedBody(p []byte) (int, error) {
+	// Write chunk size in hex followed by \r\n
+	sizeLine := fmt.Sprintf("%x\r\n", len(p))
+	if _, err := w.Writer.Write([]byte(sizeLine)); err != nil {
+		return 0, err
+	}
+	// Write chunk data
+	n, err := w.Writer.Write(p)
+	if err != nil {
+		return n, err
+	}
+	// Write trailing \r\n
+	if _, err := w.Writer.Write([]byte("\r\n")); err != nil {
+		return n, err
+	}
+	return n, nil
+}
+
+// WriteChunkedBodyDone writes the final zero-length chunk.
+func (w *Writer) WriteChunkedBodyDone() (int, error) {
+	return w.Writer.Write([]byte("0\r\n\r\n"))
+}
