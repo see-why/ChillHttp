@@ -48,9 +48,7 @@ func proxyHandler(w *response.Writer, req *request.Request) {
 
 	resp, err := http.Get(targetURL)
 	if err != nil {
-		w.WriteStatusLine(response.InternalServerError)
-		w.WriteHeaders(response.GetDefaultHeaders(0))
-		w.WriteBody([]byte("Proxy error\n"))
+		serverErrorHandler(w, req)
 		return
 	}
 	defer resp.Body.Close()
@@ -87,15 +85,13 @@ func proxyHandler(w *response.Writer, req *request.Request) {
 	w.WriteTrailers(trailers)
 }
 
-func videoHandler(w *response.Writer, _ *request.Request) {
+func videoHandler(w *response.Writer, req *request.Request) {
 	headers := response.GetDefaultHeaders(0)
 	headers["Content-Type"] = "video/mp4"
 	
 	video, err := os.ReadFile("assets/vim.mp4")
 	if err != nil {
-		w.WriteStatusLine(response.InternalServerError)
-		w.WriteHeaders(headers)
-		w.WriteBody([]byte("Video not found\n"))
+		serverErrorHandler(w, req)
 		return
 	}
 	
