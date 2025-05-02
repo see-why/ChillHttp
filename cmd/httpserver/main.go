@@ -66,6 +66,12 @@ func HttpHandler(w *response.Writer, req *request.Request) {
 		return
 	}
 
+	if req.RequestLine.RequestTarget == "/video" {
+		println("Video request received")
+		videoHandler(w, req)
+		return
+	}
+
 	var body []byte
 	switch req.RequestLine.RequestTarget {
 	case "/yourproblem":
@@ -112,6 +118,25 @@ func HttpHandler(w *response.Writer, req *request.Request) {
 	}
 
 	w.Writer.Write(body)
+}
+
+func videoHandler(w *response.Writer, _ *request.Request) {
+	headers := response.GetDefaultHeaders(0)
+	headers["Content-Type"] = "video/mp4"
+	
+	video, err := os.ReadFile("assets/vim.mp4")
+	if err != nil {
+		w.WriteStatusLine(response.InternalServerError)
+		w.WriteHeaders(headers)
+		w.WriteBody([]byte("Video not found\n"))
+		return
+	}
+	
+	w.WriteStatusLine(response.OK)
+
+	headers["Content-Length"] = fmt.Sprintf("%d", len(video))
+	w.WriteHeaders(headers)
+	w.WriteBody(video)
 }
 
 func main() {
