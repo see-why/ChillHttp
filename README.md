@@ -1,6 +1,6 @@
 # ChillHttp
 
-A Go implementation of an HTTP/1.1 protocol parser with streaming support.
+A Go implementation of an HTTP/1.1 server with streaming support, chunked encoding, and proxy capabilities.
 
 ## Features
 
@@ -10,6 +10,10 @@ A Go implementation of an HTTP/1.1 protocol parser with streaming support.
 - Stateful parsing
 - Support for standard HTTP methods
 - Custom status code handling with defined constants
+- Chunked transfer encoding support
+- HTTP proxy functionality
+- Response trailers support
+- Custom response writer implementation
 
 ## Structure
 
