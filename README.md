@@ -1,4 +1,4 @@
-# ChillHttp
+# Chill Http
 
 A Go implementation of an HTTP/1.1 server with streaming support, chunked encoding, and proxy capabilities.
 
